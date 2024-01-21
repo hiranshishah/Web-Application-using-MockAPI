@@ -1,61 +1,78 @@
-let tasks = [];
+const dataDiv = document.getElementById('table-body');
+const addBtn = document.getElementById('add');
+const apiLink = 'https://65a8cb55219bfa3718679c06.mockapi.io/PROJ';
+fetchData();
 
-function register() {
-  let email = document.getElementById('email').value;
-  sessionStorage.setItem("username", username);
-  sessionStorage.setItem("email", email);
-  document.getElementById('register').style.display = 'none';
-  document.getElementById('main').style.display = 'block';
-  getTasks();
-  alert('User Registered Successfully');
+async function fetchData() {
+    let api = apiLink;
+    dataDiv.innerHTML = "<h2>Loading...</h2>";
+    try {
+        let data = await fetch(api);
+        let records = await data.json();
+        drawTable(records);
+    } catch (e) {
+        dataDiv.innerHTML = `<h2>Error! Could not fetch data!</h2>`;
+    }
 }
 
-async function getTasks(){
-  let response = await fetch('https://65a8cb55219bfa3718679c06.mockapi.io/ToDo');
-  tasks = await response.json();
-  tasks.forEach(TASK => render(TASK));
+function drawTable(data) {
+    let table = '';
+    data.forEach(function(record) {
+        table += `<tr id=${record.id}>
+                    <td>${record.id}</td>
+                    <td>${record.name}</td>
+                    <td>${record.createdAt}</td>
+                    <td><img src="${record.avatar}" alt="avatar" width="50" height="50"></td>
+                    <td><button onclick="editRecord(${record.id})">Edit</button> 
+                        <button onclick="deleteRecord(${record.id})">Delete</button>
+                    </td>
+                </tr>`;
+    });
+    dataDiv.innerHTML = table;
 }
 
-async function addTaskButton() {
-  let text = document.getElementById('TASK').value;
-  let date = document.getElementById('DATE').value;
-  if (TASK.some(TASK => TASK.date === date)) {
-    alert('A task has already been scheduled for this date!');
-    return;
-  }
+addBtn.addEventListener('click', fetchData);
 
-  const postTask = { text: TASK, date: date};
+async function editRecord(id) {
+    let api = apiLink;
 
-  let response = await fetch('https://65a8cb55219bfa3718679c06.mockapi.io/ToDo', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(postTask)
-  });
+    let response = await fetch(`${api}/${id}`);
+    let record = await response.json();
+    
+    let name = window.prompt("Enter new name", record.name);
+    let avatar = window.prompt("Enter new avatar URL", record.avatar);
 
-  let taskId = await response.json();
-  tasks.push(taskId);
-  render(taskId);
+    name = name ? name : record.name;
+    avatar = avatar ? avatar : record.avatar;
+
+    let newData = {
+        id: id,
+        name: name,
+        avatar: avatar,
+    }
+
+    try{
+        response = await fetch(`${api}/${id}`, {
+            method: 'PUT', 
+            body: JSON.stringify(newData), 
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        fetchData();
+    } catch(e){
+        console.log("Error! Could not edit data!");
+    }
 }
 
-function render(TASK) {
-  let taskList = document.getElementById('TASK');
-  let listItem = document.createElement('li');
-  listItem.innerHTML = `<input type="checkbox" id="${TASK.id}" ${TASK.completed ? 'checked' : ''}> ${TASK.text}`;
-  taskList.appendChild(listItem);
-}
-
-async function updateTasks() {
-  let boxes = document.querySelectorAll(`input[type="checkbox"]`);
-  for (let box of boxes) {
-    let updTask = tasks.find(TASK => TASK.id === box.id);
-    updTask.completed = box.checked;
-
-    let endpoint = `https://65a8cb55219bfa3718679c06.mockapi.io/ToDo${box.id}`;
-    await fetch(endpoint, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(updTask)
-  }).then(res => res.json());
-}
-    alert('All tasks updated.');
+async function deleteRecord(id) {
+    let api = apiLink;
+    try{
+        let response = await fetch(`${api}/${id}`, {
+            method: 'DELETE'
+        });
+        fetchData();
+    } catch(e){
+        console.log("Error! Could not delete data!");
+    }
 }
